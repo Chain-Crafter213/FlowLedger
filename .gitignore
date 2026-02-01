@@ -1,0 +1,82 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+dist-ssr
+build
+*.local
+
+# Environment files - NEVER COMMIT SENSITIVE DATA!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Private keys and secrets (CRITICAL - NEVER COMMIT!)
+*.pem
+*.key
+private-key.txt
+secrets.json
+.secrets/
+**/credentials*
+**/password*
+**/*_secret*
+**/*_key*
+
+# Contract deployment artifacts
+contracts/cache/
+contracts/artifacts/
+contracts/typechain/
+contracts/deployments/
+contracts/.openzeppelin/
+
+# Hardhat
+cache
+artifacts
+typechain-types
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+*.swp
+*.swo
+*.suo
+
+# OS
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+
+# Logs
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage
+.nyc_output
+*.lcov
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Debug
+.eslintcache

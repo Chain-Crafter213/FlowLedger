@@ -1,0 +1,14 @@
+{
+  "network": "polygon",
+  "chainId": 137,
+  "timestamp": "2026-02-01T00:01:33.664Z",
+  "deployer": "0xd462cc45b06Ae45daCd93F7B3979758C7b4a2cc0",
+  "usdc": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+  "contracts": {
+    "FlowLedgerAttestations": "0xB5fFeB1a0558377a7c99559Cdc5eB2A8A7F8fc2a",
+    "FlowWageIdentityRegistry": "0x1cA44D55950922C64a81334cEDE9aa81C240a4e6",
+    "FlowWageFeeManager": "0x0D85592De2c91F39E13712965144029da7a60b3b",
+    "FlowWagePayrollEscrow": "0xa0B6E018C036f8C7F2aBe3095CADe7954EAa4f81",
+    "FlowLedgerPayRequests": "0xe7ed29937EA32BC8e3F910409bcf9680E27B9f9E"
+  }
+}
