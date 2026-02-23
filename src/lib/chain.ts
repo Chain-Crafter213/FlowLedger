@@ -6,14 +6,14 @@ export const USDC_ADDRESS = (import.meta.env.VITE_USDC_ADDRESS || '0x3c499c542cE
 export const USDC_DECIMALS = 6
 
 export const CONTRACT_ADDRESSES = {
-  attestations: import.meta.env.VITE_ATTESTATIONS_ADDRESS as `0x${string}` | undefined,
-  payrollEscrow: import.meta.env.VITE_PAYROLL_ESCROW_ADDRESS as `0x${string}` | undefined,
-  payRequests: import.meta.env.VITE_PAY_REQUESTS_ADDRESS as `0x${string}` | undefined,
-  feeManager: import.meta.env.VITE_FEE_MANAGER_ADDRESS as `0x${string}` | undefined,
-  identityRegistry: import.meta.env.VITE_IDENTITY_REGISTRY_ADDRESS as `0x${string}` | undefined,
-  streaming: import.meta.env.VITE_STREAMING_ADDRESS as `0x${string}` | undefined,
-  bounties: import.meta.env.VITE_BOUNTIES_ADDRESS as `0x${string}` | undefined,
-  multisig: import.meta.env.VITE_MULTISIG_ADDRESS as `0x${string}` | undefined,
+  attestations: (import.meta.env.VITE_ATTESTATIONS_ADDRESS || '0xB5fFeB1a0558377a7c99559Cdc5eB2A8A7F8fc2a') as `0x${string}`,
+  payrollEscrow: (import.meta.env.VITE_PAYROLL_ESCROW_ADDRESS || '0xa0B6E018C036f8C7F2aBe3095CADe7954EAa4f81') as `0x${string}`,
+  payRequests: (import.meta.env.VITE_PAY_REQUESTS_ADDRESS || '0xe7ed29937EA32BC8e3F910409bcf9680E27B9f9E') as `0x${string}`,
+  feeManager: (import.meta.env.VITE_FEE_MANAGER_ADDRESS || '0x0D85592De2c91F39E13712965144029da7a60b3b') as `0x${string}`,
+  identityRegistry: (import.meta.env.VITE_IDENTITY_REGISTRY_ADDRESS || '0x1cA44D55950922C64a81334cEDE9aa81C240a4e6') as `0x${string}`,
+  streaming: (import.meta.env.VITE_STREAMING_ADDRESS || '0x847169EC1463c493F663cF76Bd1cC283B185be0B') as `0x${string}`,
+  bounties: (import.meta.env.VITE_BOUNTIES_ADDRESS || '0x7c8B4B5eC17e0B641909ca686cA6E4F7e5967cA9') as `0x${string}`,
+  multisig: (import.meta.env.VITE_MULTISIG_ADDRESS || '0x99dfa41b6614e170A46D1DEbB12fB7C6f9779b6f') as `0x${string}`,
 }
 
 export const RPC_URL = import.meta.env.VITE_POLYGON_RPC_URL || 'https://polygon-rpc.com'
