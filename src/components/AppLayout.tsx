@@ -44,19 +44,8 @@ interface AppLayoutProps {
 
 function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5">
-      <div className="relative">
-        <motion.div
-          className="absolute inset-0 rounded-lg bg-primary/30 blur-md"
-          animate={{ scale: [1, 1.25, 1] }}
-          transition={{ duration: 3, repeat: Infinity }}
-        />
-        <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-white" strokeWidth="2.2" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-          </svg>
-        </div>
-      </div>
+    <Link to="/" className="flex items-center gap-2">
+      <img src="/logofl.jpg" alt="FlowLedger" className="h-8 w-8 rounded-lg object-cover" />
       <span className="font-display text-base font-bold">FlowLedger</span>
     </Link>
   )
@@ -223,7 +212,7 @@ export function AppLayout({ children, variant = 'employer' }: AppLayoutProps) {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="container max-w-5xl py-6 lg:py-8"
+            className="mx-auto w-full max-w-6xl px-6 py-6 lg:px-10 lg:py-8"
           >
             {children}
           </motion.div>

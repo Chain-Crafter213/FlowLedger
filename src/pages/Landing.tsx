@@ -179,20 +179,13 @@ export default function Landing() {
         className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-xl"
       >
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            {/* Animated logo icon */}
-            <div className="relative">
-              <motion.div
-                className="absolute inset-0 rounded-lg bg-primary/30 blur-md"
-                animate={{ scale: [1, 1.3, 1] }}
-                transition={{ duration: 2.5, repeat: Infinity }}
-              />
-              <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-white" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-              </div>
-            </div>
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <motion.img
+              src="/logofl.jpg"
+              alt="FlowLedger"
+              className="h-9 w-9 rounded-xl object-cover shadow-md"
+              whileHover={{ scale: 1.08 }}
+            />
             <span className="font-display text-xl font-bold">FlowLedger</span>
           </Link>
 
@@ -601,11 +594,7 @@ export default function Landing() {
         <div className="container">
           <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
             <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-white" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-              </div>
+              <img src="/logofl.jpg" alt="FlowLedger" className="h-7 w-7 rounded-lg object-cover" />
               <span className="font-display font-bold">FlowLedger</span>
             </Link>
 
