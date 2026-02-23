@@ -22,15 +22,15 @@ import { CONTRACT_ADDRESSES } from '@/lib/chain'
 import { FlowLedgerPayRequestsABI } from '@/abi/FlowLedgerPayRequests'
 
 interface RequestData {
-  id: string
-  from: string
-  to: string
+  id: bigint
+  worker: string
+  employer: string
   amount: bigint
-  memo: string
+  description: string
   status: number
   createdAt: bigint
-  expiresAt: bigint
-  paidAt: bigint
+  dueDate: bigint
+  rejectionReason: string
 }
 
 function RequestCard({
@@ -48,8 +48,8 @@ function RequestCard({
   isPaying: boolean
   isCancelling: boolean
 }) {
-  const statusLabels = ['Pending', 'Paid', 'Cancelled', 'Expired']
-  const statusColors = ['text-yellow-500', 'text-emerald-500', 'text-red-500', 'text-muted-foreground']
+  const statusLabels = ['Pending', 'Approved', 'Rejected', 'Paid', 'Cancelled']
+  const statusColors = ['text-yellow-500', 'text-blue-500', 'text-red-500', 'text-emerald-500', 'text-muted-foreground']
   const status = Number(req.status)
 
   return (
@@ -61,27 +61,27 @@ function RequestCard({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-semibold ${statusColors[status]}`}>
-              {statusLabels[status]}
+            <span className={`text-xs font-semibold ${statusColors[status] ?? 'text-muted-foreground'}`}>
+              {statusLabels[status] ?? 'Unknown'}
             </span>
-            {req.expiresAt > BigInt(0) && status === 0 && (
+            {req.dueDate > BigInt(0) && status === 0 && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />
-                Expires {new Date(Number(req.expiresAt) * 1000).toLocaleDateString()}
+                Due {new Date(Number(req.dueDate) * 1000).toLocaleDateString()}
               </span>
             )}
           </div>
           <p className="mt-1 text-2xl font-bold">{formatUSDC(req.amount)}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {type === 'incoming' ? 'From' : 'To'}:
+            {type === 'incoming' ? 'From Worker' : 'To Employer'}:
           </p>
           <AddressDisplay
-            address={type === 'incoming' ? req.from : req.to}
+            address={type === 'incoming' ? req.worker : req.employer}
             showCopy
             showExplorer
           />
-          {req.memo && (
-            <p className="mt-2 text-sm text-muted-foreground italic">"{req.memo}"</p>
+          {req.description && (
+            <p className="mt-2 text-sm text-muted-foreground italic">"{req.description}"</p>
           )}
           <p className="mt-1 text-xs text-muted-foreground">
             Created: {new Date(Number(req.createdAt) * 1000).toLocaleDateString()}
@@ -91,7 +91,7 @@ function RequestCard({
           {type === 'incoming' && status === 0 && onPay && (
             <Button
               size="sm"
-              onClick={() => onPay(req.id, req.amount)}
+              onClick={() => onPay(req.id.toString(), req.amount)}
               disabled={isPaying}
             >
               {isPaying ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Check className="mr-1 h-3 w-3" />}
@@ -102,7 +102,7 @@ function RequestCard({
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => onCancel(req.id)}
+              onClick={() => onCancel(req.id.toString())}
               disabled={isCancelling}
             >
               {isCancelling ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <X className="mr-1 h-3 w-3" />}
@@ -121,20 +121,20 @@ export default function Requests() {
   const [payingId, setPayingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
 
-  // Read incoming request IDs
+  // Read incoming request IDs (requests where I'm the employer being asked to pay)
   const { data: incomingIds } = useReadContract({
     address: CONTRACT_ADDRESSES.payRequests,
     abi: FlowLedgerPayRequestsABI,
-    functionName: 'getIncomingRequests',
+    functionName: 'getRequestsByEmployer',
     args: address ? [address] : undefined,
     query: { enabled: !!address && !!CONTRACT_ADDRESSES.payRequests },
   })
 
-  // Read outgoing request IDs
+  // Read outgoing request IDs (requests I created as a worker)
   const { data: outgoingIds } = useReadContract({
     address: CONTRACT_ADDRESSES.payRequests,
     abi: FlowLedgerPayRequestsABI,
-    functionName: 'getOutgoingRequests',
+    functionName: 'getRequestsByWorker',
     args: address ? [address] : undefined,
     query: { enabled: !!address && !!CONTRACT_ADDRESSES.payRequests },
   })
@@ -158,7 +158,8 @@ export default function Requests() {
         address: CONTRACT_ADDRESSES.payRequests,
         abi: FlowLedgerPayRequestsABI,
         functionName: 'payRequest',
-        args: [payingId as `0x${string}`],
+        args: [BigInt(payingId)],
+        gas: BigInt(200_000),
       })
     }
   }, [isApproveConfirmed, payingId, payHash])
@@ -188,6 +189,7 @@ export default function Requests() {
       abi: USDC_ABI,
       functionName: 'approve',
       args: [CONTRACT_ADDRESSES.payRequests, amount],
+      gas: BigInt(100_000),
     })
   }
 
@@ -198,7 +200,8 @@ export default function Requests() {
       address: CONTRACT_ADDRESSES.payRequests,
       abi: FlowLedgerPayRequestsABI,
       functionName: 'cancelRequest',
-      args: [id as `0x${string}`],
+      args: [BigInt(id)],
+      gas: BigInt(200_000),
     })
   }
 
@@ -217,18 +220,18 @@ export default function Requests() {
             <TabsTrigger value="incoming" className="gap-2">
               <Inbox className="h-4 w-4" />
               Incoming
-              {incomingIds && (incomingIds as string[]).length > 0 && (
+              {incomingIds && (incomingIds as bigint[]).length > 0 && (
                 <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-white">
-                  {(incomingIds as string[]).length}
+                  {(incomingIds as bigint[]).length}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger value="outgoing" className="gap-2">
               <Send className="h-4 w-4" />
               Outgoing
-              {outgoingIds && (outgoingIds as string[]).length > 0 && (
+              {outgoingIds && (outgoingIds as bigint[]).length > 0 && (
                 <span className="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px]">
-                  {(outgoingIds as string[]).length}
+                  {(outgoingIds as bigint[]).length}
                 </span>
               )}
             </TabsTrigger>
@@ -239,7 +242,7 @@ export default function Requests() {
               <div className="space-y-3">
                 {[1, 2].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
               </div>
-            ) : (incomingIds as string[]).length === 0 ? (
+            ) : (incomingIds as bigint[]).length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center py-12">
                   <Inbox className="h-10 w-10 text-muted-foreground/40" />
@@ -250,16 +253,16 @@ export default function Requests() {
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  {(incomingIds as string[]).length} request(s) — connect on-chain data loads per request
+                  {(incomingIds as bigint[]).length} request(s)
                 </p>
-                {(incomingIds as string[]).map((id, idx) => (
+                {(incomingIds as bigint[]).map((id, idx) => (
                   <RequestIdCard
-                    key={id}
+                    key={id.toString()}
                     requestId={id}
                     type="incoming"
                     onPay={handlePay}
                     onCancel={undefined}
-                    isPaying={payingId === id && (isApproving || isPayingTx)}
+                    isPaying={payingId === id.toString() && (isApproving || isPayingTx)}
                     isCancelling={false}
                     delay={idx * 0.05}
                   />
@@ -273,7 +276,7 @@ export default function Requests() {
               <div className="space-y-3">
                 {[1, 2].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}
               </div>
-            ) : (outgoingIds as string[]).length === 0 ? (
+            ) : (outgoingIds as bigint[]).length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center py-12">
                   <Send className="h-10 w-10 text-muted-foreground/40" />
@@ -283,15 +286,15 @@ export default function Requests() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {(outgoingIds as string[]).map((id, idx) => (
+                {(outgoingIds as bigint[]).map((id, idx) => (
                   <RequestIdCard
-                    key={id}
+                    key={id.toString()}
                     requestId={id}
                     type="outgoing"
                     onPay={undefined}
                     onCancel={handleCancel}
                     isPaying={false}
-                    isCancelling={cancellingId === id && isCancellingTx}
+                    isCancelling={cancellingId === id.toString() && isCancellingTx}
                     delay={idx * 0.05}
                   />
                 ))}
@@ -314,7 +317,7 @@ function RequestIdCard({
   isCancelling,
   delay,
 }: {
-  requestId: string
+  requestId: bigint
   type: 'incoming' | 'outgoing'
   onPay?: (id: string, amount: bigint) => void
   onCancel?: (id: string) => void
@@ -326,7 +329,7 @@ function RequestIdCard({
     address: CONTRACT_ADDRESSES.payRequests,
     abi: FlowLedgerPayRequestsABI,
     functionName: 'getRequest',
-    args: [requestId as `0x${string}`],
+    args: [requestId],
     query: { enabled: !!CONTRACT_ADDRESSES.payRequests },
   })
 
@@ -335,16 +338,17 @@ function RequestIdCard({
   }
 
   const result = data as any
+  // Contract struct: id, worker, employer, amount, description, createdAt, dueDate, status, rejectionReason
   const req: RequestData = {
-    id: requestId,
-    from: result.from ?? result[0],
-    to: result.to ?? result[1],
-    amount: result.amount ?? result[2],
-    memo: result.memo ?? result[3],
-    status: Number(result.status ?? result[4]),
-    createdAt: result.createdAt ?? result[5],
-    expiresAt: result.expiresAt ?? result[6],
-    paidAt: result.paidAt ?? result[7],
+    id: result.id ?? result[0] ?? requestId,
+    worker: result.worker ?? result[1] ?? '',
+    employer: result.employer ?? result[2] ?? '',
+    amount: result.amount ?? result[3] ?? BigInt(0),
+    description: result.description ?? result[4] ?? '',
+    createdAt: result.createdAt ?? result[5] ?? BigInt(0),
+    dueDate: result.dueDate ?? result[6] ?? BigInt(0),
+    status: Number(result.status ?? result[7] ?? 0),
+    rejectionReason: result.rejectionReason ?? result[8] ?? '',
   }
 
   return (

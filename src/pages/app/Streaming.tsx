@@ -115,6 +115,7 @@ function StreamCard({ streamId, contractAddr }: { streamId: `0x${string}`; contr
               abi: FlowLedgerStreamingABI,
               functionName: 'cancelStream',
               args: [streamId],
+              gas: BigInt(200_000),
             })}
           >
             {isCancelling ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <XCircle className="mr-1 h-3 w-3" />}
@@ -163,6 +164,7 @@ export default function Streaming() {
         abi: FlowLedgerStreamingABI,
         functionName: 'createStream',
         args: [worker as `0x${string}`, amountBigInt, startTime, endTime],
+        gas: BigInt(300_000),
       })
     }
   }, [isApproved])
@@ -186,6 +188,7 @@ export default function Streaming() {
       abi: USDC_ABI,
       functionName: 'approve',
       args: [contractAddr, amountBigInt],
+      gas: BigInt(100_000),
     })
   }
 

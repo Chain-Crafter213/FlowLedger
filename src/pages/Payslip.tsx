@@ -38,16 +38,16 @@ export default function Payslip() {
     return keccak256(toHex(s))
   }
 
-  // Check attestation count
-  const { data: attestationCount } = useReadContract({
+  // Check attestations for this tx
+  const { data: attestationIds } = useReadContract({
     address: CONTRACT_ADDRESSES.attestations,
     abi: FlowLedgerAttestationsABI,
-    functionName: 'getAttestationCount',
-    args: referenceType && referenceId ? [toBytes32(referenceType), toBytes32(referenceId)] : undefined,
-    query: { enabled: !!referenceType && !!referenceId && !!CONTRACT_ADDRESSES.attestations },
+    functionName: 'getAttestationsByTx',
+    args: referenceId ? [toBytes32(referenceId)] : undefined,
+    query: { enabled: !!referenceId && !!CONTRACT_ADDRESSES.attestations },
   })
 
-  const attCount = Number(attestationCount ?? 0)
+  const attCount = Array.isArray(attestationIds) ? attestationIds.length : 0
 
   // Get transfer data
   const transfer = useLiveQuery(async () => {

@@ -1,20 +1,22 @@
 export const FlowWagePayrollEscrowABI = [
+  // Constructor
   {
     inputs: [
       { name: '_usdc', type: 'address' },
-      { name: '_feeManager', type: 'address' },
+      { name: '_owner', type: 'address' },
     ],
     stateMutability: 'nonpayable',
     type: 'constructor',
   },
+  // Events
   {
     anonymous: false,
     inputs: [
-      { indexed: true, name: 'runId', type: 'bytes32' },
+      { indexed: true, name: 'payrollId', type: 'uint256' },
       { indexed: true, name: 'employer', type: 'address' },
       { indexed: false, name: 'totalAmount', type: 'uint256' },
       { indexed: false, name: 'workerCount', type: 'uint256' },
-      { indexed: false, name: 'timestamp', type: 'uint256' },
+      { indexed: false, name: 'memo', type: 'string' },
     ],
     name: 'PayrollCreated',
     type: 'event',
@@ -22,23 +24,9 @@ export const FlowWagePayrollEscrowABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true, name: 'runId', type: 'bytes32' },
-      { indexed: true, name: 'paymentId', type: 'bytes32' },
+      { indexed: true, name: 'payrollId', type: 'uint256' },
       { indexed: true, name: 'worker', type: 'address' },
       { indexed: false, name: 'amount', type: 'uint256' },
-      { indexed: false, name: 'timestamp', type: 'uint256' },
-    ],
-    name: 'PaymentReleased',
-    type: 'event',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: 'runId', type: 'bytes32' },
-      { indexed: true, name: 'paymentId', type: 'bytes32' },
-      { indexed: true, name: 'worker', type: 'address' },
-      { indexed: false, name: 'amount', type: 'uint256' },
-      { indexed: false, name: 'timestamp', type: 'uint256' },
     ],
     name: 'PaymentClaimed',
     type: 'event',
@@ -46,11 +34,9 @@ export const FlowWagePayrollEscrowABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true, name: 'runId', type: 'bytes32' },
-      { indexed: true, name: 'paymentId', type: 'bytes32' },
+      { indexed: true, name: 'payrollId', type: 'uint256' },
       { indexed: true, name: 'worker', type: 'address' },
       { indexed: false, name: 'reason', type: 'string' },
-      { indexed: false, name: 'timestamp', type: 'uint256' },
     ],
     name: 'PaymentDisputed',
     type: 'event',
@@ -58,27 +44,28 @@ export const FlowWagePayrollEscrowABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true, name: 'runId', type: 'bytes32' },
-      { indexed: true, name: 'paymentId', type: 'bytes32' },
-      { indexed: false, name: 'resolved', type: 'bool' },
-      { indexed: false, name: 'timestamp', type: 'uint256' },
+      { indexed: true, name: 'payrollId', type: 'uint256' },
+      { indexed: true, name: 'employer', type: 'address' },
+      { indexed: false, name: 'refundedAmount', type: 'uint256' },
     ],
-    name: 'DisputeResolved',
+    name: 'PayrollRevoked',
     type: 'event',
   },
+  // Functions
   {
     inputs: [
       { name: 'workers', type: 'address[]' },
       { name: 'amounts', type: 'uint256[]' },
-      { name: 'payPeriodLabel', type: 'string' },
+      { name: 'memo', type: 'string' },
+      { name: 'expiresIn', type: 'uint256' },
     ],
     name: 'createPayroll',
-    outputs: [{ name: 'runId', type: 'bytes32' }],
+    outputs: [{ name: 'payrollId', type: 'uint256' }],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [{ name: 'paymentId', type: 'bytes32' }],
+    inputs: [{ name: 'payrollId', type: 'uint256' }],
     name: 'claimPayment',
     outputs: [],
     stateMutability: 'nonpayable',
@@ -86,7 +73,7 @@ export const FlowWagePayrollEscrowABI = [
   },
   {
     inputs: [
-      { name: 'paymentId', type: 'bytes32' },
+      { name: 'payrollId', type: 'uint256' },
       { name: 'reason', type: 'string' },
     ],
     name: 'disputePayment',
@@ -95,48 +82,34 @@ export const FlowWagePayrollEscrowABI = [
     type: 'function',
   },
   {
-    inputs: [
-      { name: 'paymentId', type: 'bytes32' },
-      { name: 'releaseToWorker', type: 'bool' },
-    ],
-    name: 'resolveDispute',
+    inputs: [{ name: 'payrollId', type: 'uint256' }],
+    name: 'revokePayroll',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [{ name: 'runId', type: 'bytes32' }],
-    name: 'getPayrollRun',
-    outputs: [
-      {
-        components: [
-          { name: 'employer', type: 'address' },
-          { name: 'totalAmount', type: 'uint256' },
-          { name: 'workerCount', type: 'uint256' },
-          { name: 'claimedCount', type: 'uint256' },
-          { name: 'payPeriodLabel', type: 'string' },
-          { name: 'createdAt', type: 'uint256' },
-          { name: 'status', type: 'uint8' },
-        ],
-        name: '',
-        type: 'tuple',
-      },
-    ],
+    inputs: [{ name: 'payrollId', type: 'uint256' }],
+    name: 'getPayrollWorkers',
+    outputs: [{ name: '', type: 'address[]' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ name: 'paymentId', type: 'bytes32' }],
+    inputs: [
+      { name: 'payrollId', type: 'uint256' },
+      { name: 'worker', type: 'address' },
+    ],
     name: 'getPayment',
     outputs: [
       {
         components: [
-          { name: 'runId', type: 'bytes32' },
+          { name: 'payrollId', type: 'uint256' },
           { name: 'worker', type: 'address' },
           { name: 'amount', type: 'uint256' },
-          { name: 'status', type: 'uint8' },
+          { name: 'claimed', type: 'bool' },
+          { name: 'disputed', type: 'bool' },
           { name: 'claimedAt', type: 'uint256' },
-          { name: 'disputeReason', type: 'string' },
         ],
         name: '',
         type: 'tuple',
@@ -146,29 +119,55 @@ export const FlowWagePayrollEscrowABI = [
     type: 'function',
   },
   {
-    inputs: [{ name: 'worker', type: 'address' }],
-    name: 'getPendingPayments',
-    outputs: [{ name: '', type: 'bytes32[]' }],
+    inputs: [
+      { name: 'payrollId', type: 'uint256' },
+      { name: 'worker', type: 'address' },
+    ],
+    name: 'isClaimable',
+    outputs: [{ name: '', type: 'bool' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ name: 'employer', type: 'address' }],
-    name: 'getEmployerRuns',
-    outputs: [{ name: '', type: 'bytes32[]' }],
+    inputs: [{ name: '', type: 'uint256' }],
+    name: 'payrollRuns',
+    outputs: [
+      { name: 'id', type: 'uint256' },
+      { name: 'employer', type: 'address' },
+      { name: 'totalAmount', type: 'uint256' },
+      { name: 'claimedAmount', type: 'uint256' },
+      { name: 'createdAt', type: 'uint256' },
+      { name: 'expiresAt', type: 'uint256' },
+      { name: 'revoked', type: 'bool' },
+      { name: 'memo', type: 'string' },
+    ],
     stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [],
-    name: 'disputeWindow',
+    name: 'payrollCount',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
+    inputs: [{ name: '_feeManager', type: 'address' }],
+    name: 'setFeeManager',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
     inputs: [],
     name: 'usdc',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'feeManager',
     outputs: [{ name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',

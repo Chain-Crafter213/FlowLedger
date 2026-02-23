@@ -114,6 +114,7 @@ function WorkerBountyCard({ bountyId, contractAddr }: { bountyId: `0x${string}`;
                   abi: FlowLedgerBountiesABI,
                   functionName: 'submitWork',
                   args: [bountyId, hex as `0x${string}`],
+                  gas: BigInt(200_000),
                 })
               }}
               disabled={isSubmitting || !proofHash.trim()}

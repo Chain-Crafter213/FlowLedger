@@ -48,17 +48,16 @@ export default function TxDetails() {
     return keccak256(toHex(s))
   }
 
-  // Read existing attestation
-  const { data: attestation, refetch: refetchAttestation } = useReadContract({
+  // Read existing attestations for this tx
+  const { data: attestationIds, refetch: refetchAttestation } = useReadContract({
     address: CONTRACT_ADDRESSES.attestations,
     abi: FlowLedgerAttestationsABI,
-    functionName: 'getAttestation',
-    args: address && hash ? [toBytes32('TX_HASH'), toBytes32(hash), address] : undefined,
-    query: { enabled: !!address && !!hash && !!CONTRACT_ADDRESSES.attestations },
+    functionName: 'getAttestationsByTx',
+    args: hash ? [toBytes32(hash)] : undefined,
+    query: { enabled: !!hash && !!CONTRACT_ADDRESSES.attestations },
   })
 
-  const attestationData = attestation as any
-  const hasAttestation = attestationData?.exists ?? attestationData?.[4] ?? false
+  const hasAttestation = Array.isArray(attestationIds) && attestationIds.length > 0
 
   // Write attestation
   const { writeContract: createAttestation, data: attestHash, isPending: isAttesting } = useWriteContract()
@@ -120,17 +119,18 @@ export default function TxDetails() {
 
       // Publish on-chain if toggled
       if (publishOnChain && CONTRACT_ADDRESSES.attestations) {
+        // createAttestation(bytes32 contentHash, string metadata, bytes32 txHash)
+        const contentHash = toBytes32(memo + '|' + tags.join(','))
         createAttestation({
           address: CONTRACT_ADDRESSES.attestations,
           abi: FlowLedgerAttestationsABI,
-          functionName: hasAttestation ? 'updateAttestation' : 'createAttestation',
+          functionName: 'createAttestation',
           args: [
-            toBytes32('TX_HASH'),
+            contentHash,
+            memo || '',
             toBytes32(hash!),
-            toBytes32(memo),
-            toBytes32(tags.join(',')),
-            '',
           ],
+          gas: BigInt(300_000),
         })
       }
     } catch (error) {

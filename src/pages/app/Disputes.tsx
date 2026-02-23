@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { motion } from 'framer-motion'
 import { ShieldAlert, AlertTriangle } from 'lucide-react'
 import { AppLayout } from '@/components/AppLayout'
@@ -7,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
+import { formatUSDC } from '@/lib/usdc'
+import { db } from '@/lib/storage'
 import { CONTRACT_ADDRESSES } from '@/lib/chain'
 import { FlowWagePayrollEscrowABI } from '@/abi/FlowWagePayrollEscrow'
 
@@ -14,34 +17,44 @@ export default function Disputes() {
   const { address } = useAccount()
   const { toast } = useToast()
 
-  // Get employer runs
-  const { data: runIds } = useReadContract({
+  // Load local payroll runs to find their on-chain IDs
+  const localRuns = useLiveQuery(async () => {
+    if (!address) return []
+    return db.payrollRuns
+      .where('employer').equalsIgnoreCase(address)
+      .toArray()
+  }, [address])
+
+  // Read total payroll count from contract
+  const { data: payrollCount } = useReadContract({
     address: CONTRACT_ADDRESSES.payrollEscrow,
     abi: FlowWagePayrollEscrowABI,
-    functionName: 'getEmployerRuns',
-    args: address ? [address] : undefined,
-    query: { enabled: !!address && !!CONTRACT_ADDRESSES.payrollEscrow },
+    functionName: 'payrollCount',
+    query: { enabled: !!CONTRACT_ADDRESSES.payrollEscrow },
   })
 
-  const { writeContract: resolveDispute, data: resolveHash, isPending: isResolving } = useWriteContract()
-  const { isSuccess: isResolved } = useWaitForTransactionReceipt({ hash: resolveHash })
+  const { writeContract: revokePayroll, data: revokeHash, isPending: isRevoking } = useWriteContract()
+  const { isSuccess: isRevoked } = useWaitForTransactionReceipt({ hash: revokeHash })
 
   useEffect(() => {
-    if (isResolved) {
-      toast({ title: 'Dispute Resolved', description: 'The dispute has been resolved on-chain.' })
+    if (isRevoked) {
+      toast({ title: 'Payroll Revoked', description: 'Unclaimed funds have been refunded.' })
       window.location.reload()
     }
-  }, [isResolved])
+  }, [isRevoked])
 
-  const handleResolve = (paymentId: string, releaseToWorker: boolean) => {
+  const handleRevoke = (payrollId: bigint) => {
     if (!CONTRACT_ADDRESSES.payrollEscrow) return
-    resolveDispute({
+    revokePayroll({
       address: CONTRACT_ADDRESSES.payrollEscrow,
       abi: FlowWagePayrollEscrowABI,
-      functionName: 'resolveDispute',
-      args: [paymentId as `0x${string}`, releaseToWorker],
+      functionName: 'revokePayroll',
+      args: [payrollId],
+      gas: BigInt(200_000),
     })
   }
+
+  const count = Number(payrollCount ?? 0)
 
   return (
     <AppLayout>
@@ -51,18 +64,18 @@ export default function Disputes() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
               <ShieldAlert className="h-5 w-5 text-red-500" />
             </div>
-            Disputes
+            Disputes &amp; Revocations
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Review and resolve disputed payments from your payroll runs
+            Review payroll runs on-chain. Revoke unclaimed payments to get refunds.
           </p>
         </motion.div>
 
-        {!runIds ? (
+        {localRuns === undefined ? (
           <div className="space-y-3">
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
           </div>
-        ) : (runIds as string[]).length === 0 ? (
+        ) : count === 0 && (!localRuns || localRuns.length === 0) ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center py-16">
               <ShieldAlert className="h-12 w-12 text-muted-foreground/30" />
@@ -73,14 +86,15 @@ export default function Disputes() {
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Showing disputes from {(runIds as string[]).length} payroll run(s)
+              {count} payroll run(s) on-chain. {localRuns?.length ?? 0} saved locally.
             </p>
-            {(runIds as string[]).map((runId, idx) => (
-              <RunDisputeCard
-                key={runId}
-                runId={runId}
-                onResolve={handleResolve}
-                isResolving={isResolving}
+            {/* Show on-chain payroll IDs from 1 to count */}
+            {Array.from({ length: Math.min(count, 20) }, (_, i) => i + 1).map((payrollId, idx) => (
+              <PayrollRunCard
+                key={payrollId}
+                payrollId={BigInt(payrollId)}
+                onRevoke={handleRevoke}
+                isRevoking={isRevoking}
                 delay={idx * 0.08}
               />
             ))}
@@ -91,54 +105,72 @@ export default function Disputes() {
   )
 }
 
-function RunDisputeCard({
-  runId,
-  onResolve: _onResolve,
-  isResolving,
+function PayrollRunCard({
+  payrollId,
+  onRevoke,
+  isRevoking,
   delay,
 }: {
-  runId: string
-  onResolve: (paymentId: string, releaseToWorker: boolean) => void
-  isResolving: boolean
+  payrollId: bigint
+  onRevoke: (payrollId: bigint) => void
+  isRevoking: boolean
   delay: number
 }) {
+  const { address } = useAccount()
+
   const { data: runData } = useReadContract({
     address: CONTRACT_ADDRESSES.payrollEscrow,
     abi: FlowWagePayrollEscrowABI,
-    functionName: 'getPayrollRun',
-    args: [runId as `0x${string}`],
+    functionName: 'payrollRuns',
+    args: [payrollId],
     query: { enabled: !!CONTRACT_ADDRESSES.payrollEscrow },
   })
 
   if (!runData) return <Skeleton className="h-20 w-full rounded-xl" />
 
   const run = runData as any
-  const label = run.payPeriodLabel ?? run[4] ?? 'Payroll Run'
-  const workerCount = Number(run.workerCount ?? run[2] ?? 0)
+  const employer = (run.employer ?? run[1] ?? '') as string
+  const totalAmount = run.totalAmount ?? run[2] ?? BigInt(0)
+  const claimedAmount = run.claimedAmount ?? run[3] ?? BigInt(0)
+  const memo = run.memo ?? run[7] ?? 'Payroll Run'
+  const revoked = run.revoked ?? run[6] ?? false
+  const isMyRun = employer.toLowerCase() === (address ?? '').toLowerCase()
+
+  if (!isMyRun) return null
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center justify-between">
-            <span>{label}</span>
-            <span className="text-xs text-muted-foreground font-mono">{workerCount} workers</span>
+            <span>{memo || `Payroll #${payrollId.toString()}`}</span>
+            <span className="text-xs text-muted-foreground font-mono">
+              {revoked ? '🔴 Revoked' : '🟢 Active'}
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-muted-foreground mb-2">
-            Run ID: {runId.slice(0, 10)}…{runId.slice(-8)}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            If disputed payments exist in this run, use the escrow contract to resolve them.
-            Release to worker or reclaim funds.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <Button size="sm" variant="outline" disabled={isResolving} className="text-xs">
-              <AlertTriangle className="mr-1 h-3 w-3" />
-              Check Payments On-Chain
-            </Button>
+          <div className="flex items-center gap-4 text-sm">
+            <span>Total: {formatUSDC(BigInt(totalAmount))}</span>
+            <span>Claimed: {formatUSDC(BigInt(claimedAmount))}</span>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Payroll ID: {payrollId.toString()}
+          </p>
+          {!revoked && (
+            <div className="mt-3 flex gap-2">
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={isRevoking}
+                onClick={() => onRevoke(payrollId)}
+                className="text-xs"
+              >
+                <AlertTriangle className="mr-1 h-3 w-3" />
+                Revoke &amp; Refund Unclaimed
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>

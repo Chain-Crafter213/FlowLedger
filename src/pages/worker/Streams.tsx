@@ -112,6 +112,7 @@ function WorkerStreamCard({ streamId, contractAddr }: { streamId: `0x${string}`;
               abi: FlowLedgerStreamingABI,
               functionName: 'withdrawFromStream',
               args: [streamId],
+              gas: BigInt(200_000),
             })}
           >
             {isWithdrawing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Download className="mr-1 h-4 w-4" />}

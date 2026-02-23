@@ -157,7 +157,8 @@ export default function ClaimPayment() {
         address: ESCROW_ADDRESS as `0x${string}`,
         abi: FlowWagePayrollEscrowABI,
         functionName: 'claimPayment',
-        args: [payment.id as `0x${string}`],
+        args: [BigInt(payment.payrollRunId || payment.id)],
+        gas: BigInt(200_000),
       })
     } catch (error) {
       console.error('Claim error:', error)
@@ -177,7 +178,8 @@ export default function ClaimPayment() {
         address: ESCROW_ADDRESS as `0x${string}`,
         abi: FlowWagePayrollEscrowABI,
         functionName: 'disputePayment',
-        args: [payment.id as `0x${string}`, disputeReason],
+        args: [BigInt(payment.payrollRunId || payment.id), disputeReason],
+        gas: BigInt(200_000),
       })
     } catch (error) {
       console.error('Dispute error:', error)

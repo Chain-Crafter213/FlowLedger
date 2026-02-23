@@ -66,8 +66,8 @@ export default function NewPayroll() {
     address: CONTRACT_ADDRESSES.feeManager,
     abi: FlowWageFeeManagerABI,
     functionName: 'calculateFee',
-    args: [totalBigIntForFee],
-    query: { enabled: totalBigIntForFee > BigInt(0) && !!CONTRACT_ADDRESSES.feeManager },
+    args: address ? [totalBigIntForFee, address] : undefined,
+    query: { enabled: totalBigIntForFee > BigInt(0) && !!CONTRACT_ADDRESSES.feeManager && !!address },
   })
 
   const fee = (feeAmount as bigint) ?? BigInt(0)
@@ -94,7 +94,8 @@ export default function NewPayroll() {
         address: CONTRACT_ADDRESSES.payrollEscrow,
         abi: FlowWagePayrollEscrowABI,
         functionName: 'createPayroll',
-        args: [workerAddresses, amounts, payPeriod],
+        args: [workerAddresses, amounts, payPeriod, BigInt(0)],
+        gas: BigInt(500_000),
       })
     }
   }, [isApproveConfirmed, payrollHash, isCreatingPayroll])
@@ -167,6 +168,7 @@ export default function NewPayroll() {
         abi: USDC_ABI,
         functionName: 'approve',
         args: [CONTRACT_ADDRESSES.payrollEscrow, totalWithFee],
+        gas: BigInt(100_000),
       })
     } catch (error) {
       toast({

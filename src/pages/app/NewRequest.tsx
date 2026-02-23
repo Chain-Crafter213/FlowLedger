@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi'
 import { motion } from 'framer-motion'
-import { keccak256, toBytes } from 'viem'
 import {
   Send,
   Loader2,
@@ -35,14 +34,6 @@ import { isValidAddress } from '@/lib/utils'
 import { CONTRACT_ADDRESSES } from '@/lib/chain'
 import { FlowLedgerPayRequestsABI } from '@/abi'
 
-// Gas-optimized: only store short hash reference on-chain
-function createMemoHash(memo: string): string {
-  if (!memo || memo.length === 0) return ''
-  // Create a short 8-char hash for on-chain storage (saves ~90% gas vs full string)
-  const hash = keccak256(toBytes(memo))
-  return hash.slice(0, 18) // 0x + 16 chars = 8 bytes
-}
-
 export default function NewRequest() {
   const navigate = useNavigate()
   const { address } = useAccount()
@@ -74,15 +65,13 @@ export default function NewRequest() {
 
       try {
         const amountBigInt = parseUSDC(amount)
-        const expiresInSeconds = parseInt(expiresInDays) * 24 * 60 * 60
-        // Use short hash instead of full memo
-        const memoHash = createMemoHash(memo)
+        const dueDate = Math.floor(Date.now() / 1000) + parseInt(expiresInDays) * 24 * 60 * 60
 
         const gas = await publicClient?.estimateContractGas({
           address: CONTRACT_ADDRESSES.payRequests as `0x${string}`,
           abi: FlowLedgerPayRequestsABI,
           functionName: 'createRequest',
-          args: [toAddress as `0x${string}`, amountBigInt, memoHash, BigInt(expiresInSeconds)],
+          args: [toAddress as `0x${string}`, amountBigInt, memo || '', BigInt(dueDate)],
           account: address,
         })
 
@@ -127,18 +116,15 @@ export default function NewRequest() {
     }
 
     const amountBigInt = parseUSDC(amount)
-    const expiresInSeconds = parseInt(expiresInDays) * 24 * 60 * 60
-    // Use short hash instead of full memo (saves gas!)
-    const memoHash = createMemoHash(memo)
+    const dueDate = Math.floor(Date.now() / 1000) + parseInt(expiresInDays) * 24 * 60 * 60
 
     try {
-      // Use lower gas settings
       writeContract({
         address: CONTRACT_ADDRESSES.payRequests,
         abi: FlowLedgerPayRequestsABI,
         functionName: 'createRequest',
-        args: [toAddress as `0x${string}`, amountBigInt, memoHash, BigInt(expiresInSeconds)],
-        // Let wallet handle gas, but we optimized the data
+        args: [toAddress as `0x${string}`, amountBigInt, memo || '', BigInt(dueDate)],
+        gas: BigInt(300_000),
       })
     } catch (error) {
       toast({

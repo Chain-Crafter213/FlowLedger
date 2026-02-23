@@ -119,6 +119,7 @@ function BountyCard({ bountyId, contractAddr, onRefresh }: { bountyId: `0x${stri
               abi: FlowLedgerBountiesABI,
               functionName: 'cancelBounty',
               args: [bountyId],
+              gas: BigInt(200_000),
             })} disabled={isCancelling}>
               {isCancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="mr-1 h-3 w-3" />}
               Cancel
@@ -140,12 +141,14 @@ function BountyCard({ bountyId, contractAddr, onRefresh }: { bountyId: `0x${stri
                   abi: FlowLedgerBountiesABI,
                   functionName: 'approveBounty',
                   args: [bountyId, sub as `0x${string}`],
+                  gas: BigInt(200_000),
                 })}
                 onReject={() => rejectSub({
                   address: contractAddr,
                   abi: FlowLedgerBountiesABI,
                   functionName: 'rejectSubmission',
                   args: [bountyId, sub as `0x${string}`, '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`],
+                  gas: BigInt(200_000),
                 })}
                 isApproving={isApproving}
                 isRejecting={isRejecting}
@@ -235,6 +238,7 @@ export default function Bounties() {
         abi: FlowLedgerBountiesABI,
         functionName: 'createBounty',
         args: [rewardBigInt, hashHex as `0x${string}`, deadline],
+        gas: BigInt(300_000),
       })
     }
   }, [isUSDCApproved])
@@ -257,6 +261,7 @@ export default function Bounties() {
       abi: USDC_ABI,
       functionName: 'approve',
       args: [contractAddr, rewardBigInt],
+      gas: BigInt(100_000),
     })
   }
 

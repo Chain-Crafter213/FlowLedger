@@ -108,6 +108,7 @@ function ProposalCard({ proposalId, contractAddr }: { proposalId: `0x${string}`;
               abi: FlowLedgerMultisigABI,
               functionName: 'approveProposal',
               args: [proposalId],
+              gas: BigInt(200_000),
             })} disabled={isApproving}>
               {isApproving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle className="mr-1 h-3 w-3" />}
               Approve
@@ -117,6 +118,7 @@ function ProposalCard({ proposalId, contractAddr }: { proposalId: `0x${string}`;
               abi: FlowLedgerMultisigABI,
               functionName: 'cancelProposal',
               args: [proposalId],
+              gas: BigInt(200_000),
             })} disabled={isCancelling}>
               {isCancelling ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="mr-1 h-3 w-3" />}
               Cancel
@@ -239,6 +241,7 @@ export default function Multisig() {
         abi: FlowLedgerMultisigABI,
         functionName: 'createProposal',
         args: [proposalTeamId as `0x${string}`, [recipient as `0x${string}`], [amountBigInt], 'Payment'],
+        gas: BigInt(500_000),
       })
     }
   }, [isUSDCApproved])
@@ -262,6 +265,7 @@ export default function Multisig() {
       abi: FlowLedgerMultisigABI,
       functionName: 'createTeam',
       args: [memberList, BigInt(threshold)],
+      gas: BigInt(300_000),
     })
   }
 
@@ -273,6 +277,7 @@ export default function Multisig() {
       abi: USDC_ABI,
       functionName: 'approve',
       args: [contractAddr, amountBigInt],
+      gas: BigInt(100_000),
     })
   }
 
