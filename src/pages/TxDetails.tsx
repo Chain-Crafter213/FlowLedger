@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useAccount } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { keccak256, toHex } from 'viem'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { motion } from 'framer-motion'
 import {
@@ -12,6 +13,8 @@ import {
   Wallet,
   Tag,
   FileText,
+  ShieldCheck,
+  Upload,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,7 +29,8 @@ import { db } from '@/lib/storage'
 import { getAnnotationForReference, saveAnnotation } from '@/lib/search'
 import { formatUSDC } from '@/lib/usdc'
 import { formatDate } from '@/lib/utils'
-import { getExplorerTxUrl } from '@/lib/chain'
+import { getExplorerTxUrl, CONTRACT_ADDRESSES } from '@/lib/chain'
+import { FlowLedgerAttestationsABI } from '@/abi'
 
 export default function TxDetails() {
   const { hash } = useParams<{ hash: string }>()
@@ -36,6 +40,36 @@ export default function TxDetails() {
   const [tagInput, setTagInput] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const [publishOnChain, setPublishOnChain] = useState(false)
+
+  // Helper to convert string to bytes32
+  const toBytes32 = (s: string): `0x${string}` => {
+    if (!s) return '0x0000000000000000000000000000000000000000000000000000000000000000'
+    return keccak256(toHex(s))
+  }
+
+  // Read existing attestation
+  const { data: attestation, refetch: refetchAttestation } = useReadContract({
+    address: CONTRACT_ADDRESSES.attestations,
+    abi: FlowLedgerAttestationsABI,
+    functionName: 'getAttestation',
+    args: address && hash ? [toBytes32('TX_HASH'), toBytes32(hash), address] : undefined,
+    query: { enabled: !!address && !!hash && !!CONTRACT_ADDRESSES.attestations },
+  })
+
+  const attestationData = attestation as any
+  const hasAttestation = attestationData?.exists ?? attestationData?.[4] ?? false
+
+  // Write attestation
+  const { writeContract: createAttestation, data: attestHash, isPending: isAttesting } = useWriteContract()
+  const { isSuccess: isAttested } = useWaitForTransactionReceipt({ hash: attestHash })
+
+  useEffect(() => {
+    if (isAttested) {
+      toast({ title: 'Published On-Chain', description: 'Annotation attestation recorded on Polygon.' })
+      refetchAttestation()
+    }
+  }, [isAttested])
 
   // Get cached transfer data
   const transfer = useLiveQuery(async () => {
@@ -83,6 +117,22 @@ export default function TxDetails() {
         title: 'Saved',
         description: 'Annotation saved successfully.',
       })
+
+      // Publish on-chain if toggled
+      if (publishOnChain && CONTRACT_ADDRESSES.attestations) {
+        createAttestation({
+          address: CONTRACT_ADDRESSES.attestations,
+          abi: FlowLedgerAttestationsABI,
+          functionName: hasAttestation ? 'updateAttestation' : 'createAttestation',
+          args: [
+            toBytes32('TX_HASH'),
+            toBytes32(hash!),
+            toBytes32(memo),
+            toBytes32(tags.join(',')),
+            '',
+          ],
+        })
+      }
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -274,13 +324,48 @@ export default function TxDetails() {
                 )}
               </div>
 
-              <Button onClick={handleSave} disabled={isSaving} className="w-full">
-                {isSaving ? (
+              {/* On-chain attestation toggle */}
+              {CONTRACT_ADDRESSES.attestations && (
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-blue-500" />
+                    <div>
+                      <p className="text-sm font-medium">Publish On-Chain</p>
+                      <p className="text-xs text-muted-foreground">
+                        Record annotation hash on the Attestations contract
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant={publishOnChain ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPublishOnChain(!publishOnChain)}
+                  >
+                    {publishOnChain ? 'On' : 'Off'}
+                  </Button>
+                </div>
+              )}
+
+              {/* Existing attestation badge */}
+              {hasAttestation && (
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3">
+                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-600">Verified On-Chain</p>
+                    <p className="text-xs text-muted-foreground">
+                      This annotation has been attested on Polygon
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={handleSave} disabled={isSaving || isAttesting} className="w-full">
+                {(isSaving || isAttesting) ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
-                Save Annotation
+                {publishOnChain ? 'Save & Publish On-Chain' : 'Save Annotation'}
               </Button>
             </CardContent>
           </Card>

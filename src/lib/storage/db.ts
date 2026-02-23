@@ -82,6 +82,67 @@ export interface UserSettings {
   value: string
 }
 
+export interface StreamRecord {
+  id?: number
+  streamId: string
+  employer: string
+  worker: string
+  totalAmount: string
+  startTime: number
+  endTime: number
+  withdrawn: string
+  status: 'active' | 'completed' | 'cancelled'
+  txHash: string
+  createdAt: number
+}
+
+export interface BountyRecord {
+  id?: number
+  bountyId: string
+  employer: string
+  amount: string
+  descriptionHash: string
+  description: string
+  deadline: number
+  status: 'open' | 'submitted' | 'approved' | 'cancelled'
+  txHash: string
+  createdAt: number
+}
+
+export interface ProposalRecord {
+  id?: number
+  proposalId: string
+  teamId: string
+  workers: string[]
+  amounts: string[]
+  label: string
+  approvals: number
+  required: number
+  status: 'pending' | 'executed' | 'cancelled'
+  txHash: string
+  createdAt: number
+}
+
+export interface EventRecord {
+  id?: number
+  eventType: string
+  contractAddress: string
+  txHash: string
+  blockNumber: number
+  data: string
+  read: boolean
+  createdAt: number
+}
+
+export interface IdentityRecord {
+  id?: number
+  address: string
+  name: string
+  role: number
+  registeredAt: number
+  cachedAt: number
+}
+
 // Database class
 class FlowLedgerDB extends Dexie {
   workers!: EntityTable<Worker, 'id'>
@@ -90,6 +151,11 @@ class FlowLedgerDB extends Dexie {
   payrollRuns!: EntityTable<PayrollRun, 'id'>
   payRequests!: EntityTable<PayRequest, 'id'>
   settings!: EntityTable<UserSettings, 'id'>
+  streams!: EntityTable<StreamRecord, 'id'>
+  bounties!: EntityTable<BountyRecord, 'id'>
+  proposals!: EntityTable<ProposalRecord, 'id'>
+  events!: EntityTable<EventRecord, 'id'>
+  identities!: EntityTable<IdentityRecord, 'id'>
 
   constructor() {
     super('FlowLedgerDB')
@@ -101,6 +167,20 @@ class FlowLedgerDB extends Dexie {
       payrollRuns: '++id, runId, employer, status, createdAt',
       payRequests: 'id, workerAddress, employerAddress, status, createdAt',
       settings: '++id, &key',
+    })
+
+    this.version(2).stores({
+      workers: '++id, address, name, createdAt',
+      annotations: '++id, referenceType, referenceId, [referenceType+referenceId], createdAt',
+      cachedTransfers: '++id, &hash, txHash, blockNumber, timestamp, from, to, cachedAt',
+      payrollRuns: '++id, runId, employer, status, createdAt',
+      payRequests: 'id, workerAddress, employerAddress, status, createdAt',
+      settings: '++id, &key',
+      streams: '++id, streamId, employer, worker, status, createdAt',
+      bounties: '++id, bountyId, employer, status, createdAt',
+      proposals: '++id, proposalId, teamId, status, createdAt',
+      events: '++id, eventType, txHash, blockNumber, read, createdAt',
+      identities: '++id, &address, name, role, cachedAt',
     })
   }
 }
@@ -129,7 +209,7 @@ export async function deleteSetting(key: string): Promise<void> {
 // Export/Import helpers
 export async function exportAllData(): Promise<string> {
   const data = {
-    version: 1,
+    version: 2,
     exportedAt: Date.now(),
     workers: await db.workers.toArray(),
     annotations: await db.annotations.toArray(),
@@ -137,6 +217,11 @@ export async function exportAllData(): Promise<string> {
     payrollRuns: await db.payrollRuns.toArray(),
     payRequests: await db.payRequests.toArray(),
     settings: await db.settings.toArray(),
+    streams: await db.streams.toArray(),
+    bounties: await db.bounties.toArray(),
+    proposals: await db.proposals.toArray(),
+    events: await db.events.toArray(),
+    identities: await db.identities.toArray(),
   }
   return JSON.stringify(data, null, 2)
 }
@@ -196,12 +281,17 @@ export async function importData(jsonString: string): Promise<{ success: boolean
 }
 
 export async function clearAllData(): Promise<void> {
-  await db.transaction('rw', [db.workers, db.annotations, db.cachedTransfers, db.payrollRuns, db.payRequests, db.settings], async () => {
+  await db.transaction('rw', [db.workers, db.annotations, db.cachedTransfers, db.payrollRuns, db.payRequests, db.settings, db.streams, db.bounties, db.proposals, db.events, db.identities], async () => {
     await db.workers.clear()
     await db.annotations.clear()
     await db.cachedTransfers.clear()
     await db.payrollRuns.clear()
     await db.payRequests.clear()
     await db.settings.clear()
+    await db.streams.clear()
+    await db.bounties.clear()
+    await db.proposals.clear()
+    await db.events.clear()
+    await db.identities.clear()
   })
 }

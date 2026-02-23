@@ -11,6 +11,14 @@ import {
   Menu,
   X,
   CreditCard,
+  Inbox,
+  ShieldAlert,
+  Clock,
+  UserCheck,
+  Waves,
+  Trophy,
+  Users2,
+  BarChart3,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -27,12 +35,22 @@ const employerNavItems: NavItem[] = [
   { label: 'Workers', href: '/app/workers', icon: Users },
   { label: 'New Payroll', href: '/app/payroll/new', icon: CreditCard },
   { label: 'Request Payment', href: '/app/requests/new', icon: FileText },
+  { label: 'Requests Inbox', href: '/app/requests', icon: Inbox },
+  { label: 'Disputes', href: '/app/disputes', icon: ShieldAlert },
+  { label: 'History', href: '/app/history', icon: Clock },
+  { label: 'Identity', href: '/app/identity', icon: UserCheck },
+  { label: 'Streams', href: '/app/streaming', icon: Waves },
+  { label: 'Bounties', href: '/app/bounties', icon: Trophy },
+  { label: 'Multisig', href: '/app/multisig', icon: Users2 },
+  { label: 'Analytics', href: '/app/analytics', icon: BarChart3 },
   { label: 'Export', href: '/app/export', icon: Download },
   { label: 'Settings', href: '/app/settings', icon: Settings },
 ]
 
 const workerNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/worker', icon: LayoutDashboard },
+  { label: 'My Streams', href: '/worker/streams', icon: Waves },
+  { label: 'Bounties', href: '/worker/bounties', icon: Trophy },
   { label: 'History', href: '/worker/history', icon: FileText },
   { label: 'Settings', href: '/worker/settings', icon: Settings },
 ]

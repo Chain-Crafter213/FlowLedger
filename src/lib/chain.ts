@@ -11,6 +11,9 @@ export const CONTRACT_ADDRESSES = {
   payRequests: import.meta.env.VITE_PAY_REQUESTS_ADDRESS as `0x${string}` | undefined,
   feeManager: import.meta.env.VITE_FEE_MANAGER_ADDRESS as `0x${string}` | undefined,
   identityRegistry: import.meta.env.VITE_IDENTITY_REGISTRY_ADDRESS as `0x${string}` | undefined,
+  streaming: import.meta.env.VITE_STREAMING_ADDRESS as `0x${string}` | undefined,
+  bounties: import.meta.env.VITE_BOUNTIES_ADDRESS as `0x${string}` | undefined,
+  multisig: import.meta.env.VITE_MULTISIG_ADDRESS as `0x${string}` | undefined,
 }
 
 export const RPC_URL = import.meta.env.VITE_POLYGON_RPC_URL || 'https://polygon-rpc.com'

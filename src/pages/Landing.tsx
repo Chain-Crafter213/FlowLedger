@@ -423,7 +423,7 @@ export default function Landing() {
             >
               <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-primary">On-Chain</p>
               <h2 className="font-display text-4xl font-bold">
-                5 contracts deployed on{' '}
+                8 contracts deployed on{' '}
                 <span className="text-primary">Polygon Mainnet</span>
               </h2>
               <p className="mt-4 text-muted-foreground">
@@ -436,6 +436,9 @@ export default function Landing() {
                   { icon: FileText, label: 'Pay Requests' },
                   { icon: Lock, label: 'Attestations' },
                   { icon: TrendingUp, label: 'Fee Manager' },
+                  { icon: TrendingUp, label: 'Streaming' },
+                  { icon: Lock, label: 'Bounties' },
+                  { icon: BarChart3, label: 'Multisig' },
                 ].map((b) => (
                   <span
                     key={b.label}
@@ -456,6 +459,9 @@ export default function Landing() {
                 { name: 'FlowWageIdentityRegistry', addr: '0x1cA44D55950922C64a81334cEDE9aa81C240a4e6' },
                 { name: 'FlowWageFeeManager', addr: '0x0D85592De2c91F39E13712965144029da7a60b3b' },
                 { name: 'FlowLedgerAttestations', addr: '0xB5fFeB1a0558377a7c99559Cdc5eB2A8A7F8fc2a' },
+                { name: 'FlowLedgerStreaming', addr: '0x847169EC1463c493F663cF76Bd1cC283B185be0B' },
+                { name: 'FlowLedgerBounties', addr: '0x7c8B4B5eC17e0B641909ca686cA6E4F7e5967cA9' },
+                { name: 'FlowLedgerMultisig', addr: '0x99dfa41b6614e170A46D1DEbB12fB7C6f9779b6f' },
               ].map((c, i) => (
                 <motion.div
                   key={c.name}

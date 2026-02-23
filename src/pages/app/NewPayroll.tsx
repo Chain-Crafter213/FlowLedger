@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { motion } from 'framer-motion'
 import {
@@ -34,6 +34,8 @@ import { useToast } from '@/components/ui/use-toast'
 import { db, type Worker } from '@/lib/storage'
 import { formatUSDC, parseUSDC, USDC_ADDRESS, USDC_ABI } from '@/lib/usdc'
 import { CONTRACT_ADDRESSES } from '@/lib/chain'
+import { FlowWagePayrollEscrowABI } from '@/abi/FlowWagePayrollEscrow'
+import { FlowWageFeeManagerABI } from '@/abi/FlowWageFeeManager'
 
 interface PaymentEntry {
   worker: Worker
@@ -49,21 +51,82 @@ export default function NewPayroll() {
   const [payments, setPayments] = useState<PaymentEntry[]>([])
   const [showConfirm, setShowConfirm] = useState(false)
   const [step, setStep] = useState<'select' | 'amounts' | 'review'>('select')
+  const savedRef = useRef(false)
 
   // Get workers
   const workers = useLiveQuery(() => db.workers.toArray(), [])
 
-  // Contract write for approval
+  // Read fee from FeeManager
+  const totalBigIntForFee = payments.reduce((sum, p) => {
+    const a = parseFloat(p.amount) || 0
+    return sum + parseUSDC(a.toFixed(2))
+  }, BigInt(0))
+
+  const { data: feeAmount } = useReadContract({
+    address: CONTRACT_ADDRESSES.feeManager,
+    abi: FlowWageFeeManagerABI,
+    functionName: 'calculateFee',
+    args: [totalBigIntForFee],
+    query: { enabled: totalBigIntForFee > BigInt(0) && !!CONTRACT_ADDRESSES.feeManager },
+  })
+
+  const fee = (feeAmount as bigint) ?? BigInt(0)
+  const totalWithFee = totalBigIntForFee + fee
+
+  // Step 1: Approve USDC
   const { writeContract: approveUsdc, data: approveHash, isPending: isApproving } = useWriteContract()
-  const { isLoading: isApproveConfirming } = useWaitForTransactionReceipt({
+  const { isLoading: isApproveConfirming, isSuccess: isApproveConfirmed } = useWaitForTransactionReceipt({
     hash: approveHash,
   })
 
-  // Contract write for payroll
-  const { data: payrollHash, isPending: isCreatingPayroll } = useWriteContract()
+  // Step 2: Create payroll on escrow
+  const { writeContract: createPayroll, data: payrollHash, isPending: isCreatingPayroll } = useWriteContract()
   const { isLoading: isPayrollConfirming, isSuccess: isPayrollConfirmed } = useWaitForTransactionReceipt({
     hash: payrollHash,
   })
+
+  // Chain: when approve confirms → fire createPayroll
+  useEffect(() => {
+    if (isApproveConfirmed && !payrollHash && !isCreatingPayroll && CONTRACT_ADDRESSES.payrollEscrow) {
+      const workerAddresses = payments.map(p => p.worker.address as `0x${string}`)
+      const amounts = payments.map(p => parseUSDC(p.amount))
+      createPayroll({
+        address: CONTRACT_ADDRESSES.payrollEscrow,
+        abi: FlowWagePayrollEscrowABI,
+        functionName: 'createPayroll',
+        args: [workerAddresses, amounts, payPeriod],
+      })
+    }
+  }, [isApproveConfirmed, payrollHash, isCreatingPayroll])
+
+  // When payroll tx confirms → save locally
+  useEffect(() => {
+    if (isPayrollConfirmed && payrollHash && !savedRef.current) {
+      savedRef.current = true
+      const runId = payrollHash
+      const now = Date.now()
+
+      db.payrollRuns.add({
+        runId,
+        employer: (address ?? '').toLowerCase(),
+        payments: payments.map(p => ({
+          worker: p.worker.address,
+          workerName: p.worker.name,
+          amount: p.amount,
+          status: 'pending' as const,
+          txHash: payrollHash,
+        })),
+        payPeriod,
+        totalAmount: totalAmount.toFixed(2),
+        status: 'completed',
+        createdAt: now,
+        updatedAt: now,
+      }).then(() => {
+        toast({ title: 'Success', description: 'Payroll created on-chain and saved!' })
+        navigate(`/app/payroll/${runId}`)
+      })
+    }
+  }, [isPayrollConfirmed, payrollHash])
 
   const totalAmount = payments.reduce((sum, p) => {
     const amount = parseFloat(p.amount) || 0
@@ -97,16 +160,13 @@ export default function NewPayroll() {
       return
     }
 
-    const amounts = payments.map((p) => parseUSDC(p.amount))
-    const totalBigInt = amounts.reduce((sum, a) => sum + a, BigInt(0))
-
     try {
-      // First approve USDC
+      // Approve USDC including fee
       approveUsdc({
         address: USDC_ADDRESS,
         abi: USDC_ABI,
         functionName: 'approve',
-        args: [CONTRACT_ADDRESSES.payrollEscrow, totalBigInt],
+        args: [CONTRACT_ADDRESSES.payrollEscrow, totalWithFee],
       })
     } catch (error) {
       toast({
@@ -115,43 +175,6 @@ export default function NewPayroll() {
         description: 'Failed to initiate approval.',
       })
     }
-  }
-
-  // Save payroll run locally on success
-  const savePayrollRun = async () => {
-    if (!address || !payrollHash) return
-
-    const runId = payrollHash
-    const now = Date.now()
-
-    await db.payrollRuns.add({
-      runId,
-      employer: address.toLowerCase(),
-      payments: payments.map((p) => ({
-        worker: p.worker.address,
-        workerName: p.worker.name,
-        amount: p.amount,
-        status: 'pending',
-        txHash: payrollHash,
-      })),
-      payPeriod,
-      totalAmount: totalAmount.toString(),
-      status: 'pending',
-      createdAt: now,
-      updatedAt: now,
-    })
-
-    toast({
-      title: 'Success',
-      description: 'Payroll created successfully!',
-    })
-
-    navigate(`/app/payroll/${runId}`)
-  }
-
-  // Watch for confirmation
-  if (isPayrollConfirmed && payrollHash) {
-    savePayrollRun()
   }
 
   const isLoading = isApproving || isApproveConfirming || isCreatingPayroll || isPayrollConfirming
@@ -434,11 +457,25 @@ export default function NewPayroll() {
 
                 <Separator />
 
-                <div className="flex items-center justify-between text-lg">
-                  <p className="font-semibold">Total</p>
-                  <p className="text-2xl font-bold">
-                    {formatUSDC(parseUSDC(totalAmount.toFixed(2)))}
-                  </p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-lg">
+                    <p className="font-semibold">Subtotal</p>
+                    <p className="text-xl font-bold">
+                      {formatUSDC(parseUSDC(totalAmount.toFixed(2)))}
+                    </p>
+                  </div>
+                  {fee > BigInt(0) && (
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <p>Protocol Fee</p>
+                      <p>{formatUSDC(fee)}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-lg">
+                    <p className="font-semibold">Total (incl. fee)</p>
+                    <p className="text-2xl font-bold">
+                      {formatUSDC(totalWithFee)}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex justify-between pt-4">

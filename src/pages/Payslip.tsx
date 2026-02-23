@@ -1,4 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
+import { useReadContract } from 'wagmi'
+import { keccak256, toHex } from 'viem'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { motion } from 'framer-motion'
 import {
@@ -8,6 +10,7 @@ import {
   Wallet,
   Copy,
   Check,
+  ShieldCheck,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -20,7 +23,8 @@ import { db } from '@/lib/storage'
 import { getAnnotationForReference } from '@/lib/search'
 import { formatUSDC } from '@/lib/usdc'
 import { formatDate } from '@/lib/utils'
-import { getExplorerTxUrl } from '@/lib/chain'
+import { getExplorerTxUrl, CONTRACT_ADDRESSES } from '@/lib/chain'
+import { FlowLedgerAttestationsABI } from '@/abi'
 
 export default function Payslip() {
   const { referenceType, referenceId } = useParams<{
@@ -28,6 +32,22 @@ export default function Payslip() {
     referenceId: string
   }>()
   const [copied, setCopied] = useState(false)
+
+  const toBytes32 = (s: string): `0x${string}` => {
+    if (!s) return '0x0000000000000000000000000000000000000000000000000000000000000000'
+    return keccak256(toHex(s))
+  }
+
+  // Check attestation count
+  const { data: attestationCount } = useReadContract({
+    address: CONTRACT_ADDRESSES.attestations,
+    abi: FlowLedgerAttestationsABI,
+    functionName: 'getAttestationCount',
+    args: referenceType && referenceId ? [toBytes32(referenceType), toBytes32(referenceId)] : undefined,
+    query: { enabled: !!referenceType && !!referenceId && !!CONTRACT_ADDRESSES.attestations },
+  })
+
+  const attCount = Number(attestationCount ?? 0)
 
   // Get transfer data
   const transfer = useLiveQuery(async () => {
@@ -115,6 +135,12 @@ export default function Payslip() {
                       <CheckCircle className="mr-1 h-3 w-3" />
                       Confirmed on Polygon
                     </Badge>
+                    {attCount > 0 && (
+                      <Badge variant="outline" className="mt-2 ml-2 border-emerald-500 text-emerald-600">
+                        <ShieldCheck className="mr-1 h-3 w-3" />
+                        {attCount} On-Chain Attestation{attCount > 1 ? 's' : ''}
+                      </Badge>
+                    )}
                   </div>
 
                   <Separator />
