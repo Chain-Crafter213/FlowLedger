@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAccount } from 'wagmi'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -8,20 +8,51 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Search,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import { AppLayout } from '@/components/AppLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useToast } from '@/components/ui/use-toast'
 import { db } from '@/lib/storage'
+import { fetchTransfersViaRPC } from '@/lib/api'
 import { formatUSDC } from '@/lib/usdc'
 import { formatDateShort } from '@/lib/utils'
 
 export default function History() {
   const { address } = useAccount()
+  const { toast } = useToast()
   const [search, setSearch] = useState('')
   const [direction, setDirection] = useState<'all' | 'sent' | 'received'>('all')
+  const [isSyncing, setIsSyncing] = useState(false)
+  const hasSynced = useRef(false)
+
+  // Auto-sync on first load
+  useEffect(() => {
+    if (!address || hasSynced.current) return
+    hasSynced.current = true
+    syncHistory()
+  }, [address])
+
+  const syncHistory = async () => {
+    if (!address || isSyncing) return
+    setIsSyncing(true)
+    try {
+      const result = await fetchTransfersViaRPC(address, 90)
+      if (result.error) {
+        toast({ variant: 'destructive', title: 'Sync Issue', description: result.error })
+      } else if (result.count > 0) {
+        toast({ title: 'Synced', description: `Found ${result.count} new transaction(s).` })
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Sync Failed', description: 'Could not fetch transactions from Polygon.' })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   const transfers = useLiveQuery(async () => {
     if (!address) return []
@@ -54,7 +85,18 @@ export default function History() {
             </div>
             Transaction History
           </h1>
-          <p className="mt-1 text-muted-foreground">All your USDC transactions on Polygon</p>
+          <div className="mt-1 flex items-center justify-between">
+            <p className="text-muted-foreground">All your USDC transactions on Polygon</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={syncHistory}
+              disabled={isSyncing}
+            >
+              {isSyncing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
+              {isSyncing ? 'Syncing...' : 'Sync'}
+            </Button>
+          </div>
         </motion.div>
 
         {/* Filters */}
@@ -106,14 +148,27 @@ export default function History() {
               </div>
             ) : transfers.length === 0 ? (
               <div className="flex flex-col items-center py-16">
-                <Clock className="h-10 w-10 text-muted-foreground/30" />
-                <p className="mt-3 font-medium">No transactions found</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Sync your transaction history from Settings.
-                </p>
-                <Link to="/app/settings" className="mt-4">
-                  <Button variant="outline" size="sm">Go to Settings</Button>
-                </Link>
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                    <p className="mt-3 font-medium">Syncing transactions from Polygon...</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Fetching your USDC transfer history (last 90 days)
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="h-10 w-10 text-muted-foreground/30" />
+                    <p className="mt-3 font-medium">No transactions found</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Click Sync to fetch your USDC transaction history from Polygon.
+                    </p>
+                    <Button variant="outline" size="sm" className="mt-4" onClick={syncHistory}>
+                      <RefreshCw className="mr-2 h-3 w-3" />
+                      Sync Now
+                    </Button>
+                  </>
+                )}
               </div>
             ) : (
               <div className="divide-y divide-border/40">
