@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
+import { useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   Inbox,
@@ -118,6 +119,7 @@ function RequestCard({
 export default function Requests() {
   const { address } = useAccount()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [payingId, setPayingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
 
@@ -168,8 +170,7 @@ export default function Requests() {
     if (isPayConfirmed) {
       toast({ title: 'Paid!', description: 'Payment request fulfilled on-chain.' })
       setPayingId(null)
-      // Refresh by reload — simplest approach
-      window.location.reload()
+      queryClient.invalidateQueries()
     }
   }, [isPayConfirmed])
 
@@ -177,7 +178,7 @@ export default function Requests() {
     if (isCancelConfirmed) {
       toast({ title: 'Cancelled', description: 'Payment request cancelled.' })
       setCancellingId(null)
-      window.location.reload()
+      queryClient.invalidateQueries()
     }
   }, [isCancelConfirmed])
 

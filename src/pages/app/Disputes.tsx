@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
+import { useQueryClient } from '@tanstack/react-query'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { motion } from 'framer-motion'
 import { ShieldAlert, AlertTriangle } from 'lucide-react'
@@ -16,6 +17,7 @@ import { FlowWagePayrollEscrowABI } from '@/abi/FlowWagePayrollEscrow'
 export default function Disputes() {
   const { address } = useAccount()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   // Load local payroll runs to find their on-chain IDs
   const localRuns = useLiveQuery(async () => {
@@ -39,7 +41,7 @@ export default function Disputes() {
   useEffect(() => {
     if (isRevoked) {
       toast({ title: 'Payroll Revoked', description: 'Unclaimed funds have been refunded.' })
-      window.location.reload()
+      queryClient.invalidateQueries()
     }
   }, [isRevoked])
 
