@@ -41,7 +41,7 @@ export default function History() {
     if (!address || isSyncing) return
     setIsSyncing(true)
     try {
-      const result = await fetchTransfersViaRPC(address, 90)
+      const result = await fetchTransfersViaRPC(address, 7)
       if (result.error) {
         toast({ variant: 'destructive', title: 'Sync Issue', description: result.error })
       } else if (result.count > 0) {

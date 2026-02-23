@@ -1,16 +1,9 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { useAccount } from 'wagmi'
-import { createPublicClient, http, type Log } from 'viem'
-import { polygon } from 'viem/chains'
+import { useAccount, usePublicClient } from 'wagmi'
+import { type Log } from 'viem'
 import { useToast } from '@/components/ui/use-toast'
 import { CONTRACT_ADDRESSES } from '@/lib/chain'
 import { db } from '@/lib/storage'
-
-// Use public RPC for event polling — Alchemy free tier limits eth_getLogs to 10 blocks
-const logsClient = createPublicClient({
-  chain: polygon,
-  transport: http('https://polygon-rpc.com'),
-})
 
 interface EventContextValue {
   events: EventItem[]
@@ -68,35 +61,41 @@ const POLL_INTERVAL = 30000 // 30 seconds
 
 export function EventProvider({ children }: { children: ReactNode }) {
   const { address } = useAccount()
+  const publicClient = usePublicClient()
   const { toast } = useToast()
   const [events, setEvents] = useState<EventItem[]>([])
   const [isPolling, setIsPolling] = useState(false)
   const lastBlockRef = useRef<bigint>(0n)
 
   useEffect(() => {
-    if (!address) return
+    if (!publicClient || !address) return
 
     let intervalId: ReturnType<typeof setInterval>
     let mounted = true
 
     const poll = async () => {
       try {
-        const currentBlock = await logsClient.getBlockNumber()
+        const currentBlock = await publicClient.getBlockNumber()
 
-        // First run: look back 5 blocks only
+        // First run: look back 5 blocks only (within Alchemy free tier 10-block limit)
         if (lastBlockRef.current === 0n) {
           lastBlockRef.current = currentBlock > 5n ? currentBlock - 5n : 0n
         }
 
         if (currentBlock <= lastBlockRef.current) return
 
+        // Clamp range to 9 blocks max (Alchemy free tier allows 10)
+        const fromBlock = currentBlock - lastBlockRef.current > 9n
+          ? currentBlock - 9n
+          : lastBlockRef.current + 1n
+
         // Collect all contract addresses to watch
         const addresses = Object.values(CONTRACT_ADDRESSES).filter(Boolean) as `0x${string}`[]
         if (addresses.length === 0) return
 
-        const logs = await logsClient.getLogs({
+        const logs = await publicClient.getLogs({
           address: addresses,
-          fromBlock: lastBlockRef.current + 1n,
+          fromBlock,
           toBlock: currentBlock,
         })
 
@@ -156,7 +155,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
       mounted = false
       clearInterval(intervalId)
     }
-  }, [address])
+  }, [publicClient, address])
 
   return (
     <EventContext.Provider value={{ events, isPolling }}>

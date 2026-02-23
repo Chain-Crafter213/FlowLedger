@@ -16,7 +16,7 @@ export const CONTRACT_ADDRESSES = {
   multisig: (import.meta.env.VITE_MULTISIG_ADDRESS || '0x99dfa41b6614e170A46D1DEbB12fB7C6f9779b6f') as `0x${string}`,
 }
 
-export const RPC_URL = import.meta.env.VITE_POLYGON_RPC_URL || 'https://polygon-rpc.com'
+export const RPC_URL = import.meta.env.VITE_POLYGON_RPC_URL || 'https://polygon-mainnet.g.alchemy.com/v2/jYtq4mLJ0kFeTg0uLUJ4M'
 
 export const POLYGON_EXPLORER = 'https://polygonscan.com'
 export const BLOCK_EXPLORER_URL = POLYGON_EXPLORER

@@ -41,7 +41,7 @@ export function Web3Provider({ children }: Web3ProviderProps) {
                 symbol: 'MATIC',
               },
               networkId: 137,
-              rpcUrls: [import.meta.env.VITE_POLYGON_RPC_URL || 'https://polygon-rpc.com'],
+              rpcUrls: [import.meta.env.VITE_POLYGON_RPC_URL || 'https://polygon-mainnet.g.alchemy.com/v2/jYtq4mLJ0kFeTg0uLUJ4M'],
               vanityName: 'Polygon',
             },
           ],
