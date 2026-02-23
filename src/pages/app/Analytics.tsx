@@ -58,8 +58,8 @@ export default function Analytics() {
     const sent = transfers.filter(t => t.from.toLowerCase() === address.toLowerCase())
     const received = transfers.filter(t => t.to.toLowerCase() === address.toLowerCase())
 
-    const totalSent = sent.reduce((sum, t) => sum + BigInt(t.value), 0n)
-    const totalReceived = received.reduce((sum, t) => sum + BigInt(t.value), 0n)
+    const totalSent = sent.reduce((sum, t) => { try { return sum + BigInt(t.value) } catch { return sum } }, 0n)
+    const totalReceived = received.reduce((sum, t) => { try { return sum + BigInt(t.value) } catch { return sum } }, 0n)
 
     // Unique counterparties
     const uniqueAddresses = new Set([
@@ -87,7 +87,7 @@ export default function Analytics() {
       const date = new Date(t.timestamp)
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       if (!months[key]) months[key] = { month: key, sent: 0, received: 0 }
-      const usdcValue = Number(BigInt(t.value)) / 1e6
+      const usdcValue = (() => { try { return Number(BigInt(t.value)) / 1e6 } catch { return parseFloat(t.value) || 0 } })()
 
       if (t.from.toLowerCase() === address.toLowerCase()) {
         months[key].sent += usdcValue
@@ -108,7 +108,7 @@ export default function Analytics() {
 
     for (const t of sent) {
       const to = t.to.toLowerCase()
-      recipientMap[to] = (recipientMap[to] || 0) + Number(BigInt(t.value)) / 1e6
+      recipientMap[to] = (recipientMap[to] || 0) + (() => { try { return Number(BigInt(t.value)) / 1e6 } catch { return parseFloat(t.value) || 0 } })()
     }
 
     return Object.entries(recipientMap)
@@ -130,7 +130,7 @@ export default function Analytics() {
 
     let cumulative = 0
     return sent.map(t => {
-      cumulative += Number(BigInt(t.value)) / 1e6
+      cumulative += (() => { try { return Number(BigInt(t.value)) / 1e6 } catch { return parseFloat(t.value) || 0 } })()
       return {
         date: new Date(t.timestamp).toLocaleDateString(),
         total: Math.round(cumulative * 100) / 100,
@@ -335,7 +335,14 @@ export default function Analytics() {
                       <div>
                         <p className="text-sm text-muted-foreground">Total Payroll Volume</p>
                         <p className="text-2xl font-bold">
-                          {formatUSDC(payrolls.reduce((sum: bigint, p: any) => sum + BigInt(p.totalAmount || '0'), 0n))}
+                          {formatUSDC(payrolls.reduce((sum: bigint, p: any) => {
+                            try {
+                              // totalAmount may be decimal ("0.01") or raw BigInt string
+                              const str = p.totalAmount || '0'
+                              const val = str.includes('.') ? BigInt(Math.round(parseFloat(str) * 1e6)) : BigInt(str)
+                              return sum + val
+                            } catch { return sum }
+                          }, 0n))}
                         </p>
                       </div>
                     </div>
