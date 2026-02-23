@@ -80,5 +80,12 @@ temp/
 
 # Debug
 .eslintcache
+
+# Documentation (only README.md tracked)
 TESTING_GUIDE.md
 ABOUT.md
+
+# Build artifacts & logs
+build-errors.txt
+dist-node/
+dist-temp/
