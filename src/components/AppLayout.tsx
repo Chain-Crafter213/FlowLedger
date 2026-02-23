@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { DynamicWidget } from '@dynamic-labs/sdk-react-core'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { 
   LayoutDashboard, 
   Users, 
@@ -11,7 +11,6 @@ import {
   Menu,
   X,
   CreditCard,
-  Wallet
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -43,6 +42,26 @@ interface AppLayoutProps {
   variant?: 'employer' | 'worker'
 }
 
+function Logo() {
+  return (
+    <Link to="/" className="flex items-center gap-2.5">
+      <div className="relative">
+        <motion.div
+          className="absolute inset-0 rounded-lg bg-primary/30 blur-md"
+          animate={{ scale: [1, 1.25, 1] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        />
+        <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+          <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-white" strokeWidth="2.2" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+          </svg>
+        </div>
+      </div>
+      <span className="font-display text-base font-bold">FlowLedger</span>
+    </Link>
+  )
+}
+
 export function AppLayout({ children, variant = 'employer' }: AppLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const location = useLocation()
@@ -50,117 +69,160 @@ export function AppLayout({ children, variant = 'employer' }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:hidden">
+
+      {/* ── Mobile Header ──────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-xl lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-2">
-            <Wallet className="h-6 w-6 text-primary" />
-            <span className="font-display font-semibold">FlowLedger</span>
-          </Link>
-          <div className="flex items-center gap-2">
+          <Logo />
+          <div className="flex items-center gap-1">
             <Link to="/search">
-              <Button variant="ghost" size="icon">
-                <Search className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Search className="h-4 w-4" />
               </Button>
             </Link>
             <Button
               variant="ghost"
               size="icon"
+              className="h-9 w-9"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
+              <AnimatePresence mode="wait" initial={false}>
+                {mobileMenuOpen ? (
+                  <motion.span key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
+                    <X className="h-4 w-4" />
+                  </motion.span>
+                ) : (
+                  <motion.span key="open" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
+                    <Menu className="h-4 w-4" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </Button>
           </div>
         </div>
         
-        {/* Mobile Navigation */}
-        <motion.div
-          initial={false}
-          animate={{ height: mobileMenuOpen ? 'auto' : 0 }}
-          className="overflow-hidden border-t"
-        >
-          <nav className="flex flex-col gap-1 p-4">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = location.pathname === item.href
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              )
-            })}
-            <div className="mt-4 border-t pt-4">
-              <DynamicWidget />
-            </div>
-          </nav>
-        </motion.div>
+        {/* Mobile nav panel */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.nav
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="overflow-hidden border-t"
+            >
+              <div className="flex flex-col gap-1 p-3">
+                {[...navItems, { label: 'Search', href: '/search', icon: Search }].map((item, i) => {
+                  const isActive = location.pathname === item.href
+                  return (
+                    <motion.div
+                      key={item.href}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                    >
+                      <Link
+                        to={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        )}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    </motion.div>
+                  )
+                })}
+                <div className="mt-3 border-t pt-3">
+                  <DynamicWidget />
+                </div>
+              </div>
+            </motion.nav>
+          )}
+        </AnimatePresence>
       </header>
 
       <div className="lg:flex">
-        {/* Desktop Sidebar */}
-        <aside className="hidden w-64 shrink-0 border-r bg-card lg:block">
-          <div className="sticky top-0 flex h-screen flex-col">
-            <div className="flex h-14 items-center gap-2 border-b px-6">
-              <Wallet className="h-6 w-6 text-primary" />
-              <span className="font-display font-semibold">FlowLedger</span>
+
+        {/* ── Desktop Sidebar ────────────────────────────────── */}
+        <aside className="hidden w-60 shrink-0 border-r lg:block">
+          <div className="sticky top-0 flex h-screen flex-col bg-background/95 backdrop-blur">
+
+            {/* Logo area */}
+            <div className="flex h-14 items-center border-b px-5">
+              <Logo />
             </div>
-            
-            <nav className="flex-1 space-y-1 p-4">
-              {navItems.map((item) => {
-                const Icon = item.icon
+
+            {/* Nav items */}
+            <nav className="flex-1 space-y-0.5 overflow-y-auto p-3 pt-4">
+              {[...navItems, { label: 'Search', href: '/search', icon: Search }].map((item, i) => {
                 const isActive = location.pathname === item.href
                 return (
-                  <Link
+                  <motion.div
                     key={item.href}
-                    to={item.href}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    )}
+                    initial={{ opacity: 0, x: -16 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05, duration: 0.3 }}
                   >
-                    <Icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>
+                    <Link
+                      to={item.href}
+                      className={cn(
+                        'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-primary/10 text-primary nav-active'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      {/* Active indicator bar */}
+                      {isActive && (
+                        <motion.div
+                          layoutId="nav-active-bar"
+                          className="absolute left-0 top-1/2 h-[55%] w-[3px] -translate-y-1/2 rounded-r-full bg-primary"
+                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                        />
+                      )}
+
+                      {/* Icon */}
+                      <div className={cn(
+                        'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
+                        isActive ? 'bg-primary text-white' : 'group-hover:bg-muted-foreground/10'
+                      )}>
+                        <item.icon className="h-4 w-4" />
+                      </div>
+
+                      <span>{item.label}</span>
+
+                      {/* Active dot */}
+                      {isActive && (
+                        <motion.span
+                          layoutId="nav-dot"
+                          className="ml-auto h-1.5 w-1.5 rounded-full bg-primary"
+                        />
+                      )}
+                    </Link>
+                  </motion.div>
                 )
               })}
-              <Link
-                to="/search"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <Search className="h-5 w-5" />
-                Search
-              </Link>
             </nav>
-            
+
+            {/* Bottom wallet */}
             <div className="border-t p-4">
               <DynamicWidget />
             </div>
           </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1">
+        {/* ── Main Content ────────────────────────────────────── */}
+        <main className="min-w-0 flex-1">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            key={location.pathname}
+            initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.25 }}
             className="container max-w-5xl py-6 lg:py-8"
           >
             {children}
